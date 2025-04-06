@@ -1,0 +1,140 @@
+#!/bin/sh
+###
+#     Copyright (C) <2025>  <Vladislav Promzelev>
+###
+
+unset N
+
+function usage() {
+    printf "Usage: git travel <branch name> [[ -b | --backward [ -n <N> ] ] | [ -f | --forward [ -n <N> ] ] | [ --head ] | [ --tail ]]\n
+Travel over commit history of the branch.\n
+OPTIONS
+\t-h, --help\tPrints this message.\n
+\t-b, --backward\tCheckout to N-th commit backward from current commit in history of the branch.\n
+\t-f, --forward\tCheckout to N-th commit forward from current commit in history of the branch.\n
+\t-n <N>\t\tSet the number of commits for go forward or backward. N equals 1 if not specified.\n
+\t--head\t\tCheckout to HEAD of the branch - latest commit.\n
+\t--tail\t\tCheckout to first commit of the branch.\n"
+    exit 2
+}
+
+function check_worktree() {
+    git status | grep 'working tree clean' >> /dev/null
+    if [ "$?" != "0" ]; then
+        echo "Working tree contains uncommited changes
+git-travel requires clean working tree.
+Please commit, stash, or discard local changes."
+        exit 1
+    fi
+}
+
+function travel_status() {
+    CUR=$(git log --oneline -n 1)
+    CUR_SHA=$(echo $CUR | awk '{print $1}')
+
+    FROM_HEAD=$(git log $BRANCH --oneline HEAD..$CUR_SHA | wc -l)
+    FROM_TAIL=$(git log --oneline | wc -l)
+    echo "Current commit is"
+    echo $CUR
+    echo "$FROM_HEAD commits down from HEAD"
+    echo "$((FROM_TAIL - 1)) commits up from TAIL"
+}
+
+function go_backward() {
+    check_worktree
+    CUR=$(git log --oneline -n 1)
+    N=${N:-"1"}
+    SHA=$(git log --oneline -n $((N + 1)) | tail -n 1 | awk '{print $1}')
+    git checkout $SHA > /dev/null 2>&1
+    echo "Going $N commit(s) backward"
+    travel_status
+    exit 0
+}
+
+function go_forward() {
+    check_worktree
+    N=${N:-"1"}
+    CUR_SHA=$(git log --oneline -n 1 | awk '{print $1}')
+    SHA=$(git log $BRANCH --oneline --reverse HEAD..$CUR_SHA | head -n $N | tail -n 1 | awk '{print $1}')
+    git checkout $SHA > /dev/null 2>&1
+    echo "Going $N commit(s) forward"
+    travel_status
+    exit 0
+}
+
+function go_head() {
+    check_worktree
+    SHA=$(git log $BRANCH -n 1 --oneline | awk '{print $1}')
+    git checkout $SHA > /dev/null 2>&1
+    echo "Going to HEAD of $BRANCH"
+    travel_status
+    exit 0
+}
+
+function go_tail() {
+    check_worktree
+    SHA=$(git log $BRANCH --oneline --reverse | head -n 1 | awk '{print $1}')
+    git checkout $SHA > /dev/null 2>&1
+    echo "Going to TAIL of $BRANCH"
+    travel_status
+    exit 0
+}
+
+if [ "$#" -lt 1 ]; then
+    echo "Illegal number of parameters"
+    usage
+fi
+
+BRANCH=$1
+shift
+git branch | grep $BRANCH >> /dev/null
+if [ "$?" != "0" ]; then
+    echo "Unknown branch $BRANCH"
+    usage
+fi
+
+PARSED_ARGUMENTS=$(getopt -n git-travel -o hn:bf --long help,backward,forward,head,tail -- "$@")
+VALID_ARGUMENTS=$?
+if [ "$VALID_ARGUMENTS" != "0" ]; then
+    usage
+fi
+
+fn="travel_status"
+
+eval set -- "$PARSED_ARGUMENTS"
+while :
+do
+    case "$1" in
+        -h | --help)
+            usage;
+            shift;;
+        -n)
+            if [[ $2 =~ ^[0-9]+$ ]]; then
+                N=$2;
+            else
+                echo "-n takes an integer as a value"
+                usage
+            fi
+            shift 2;;
+        -b | --backward)
+            fn="go_backward";
+            shift $S ;;
+        -f | --forward)
+            fn="go_forward";
+            shift ;;
+        --head)
+            fn="go_head";
+            shift;;
+        --tail)
+            fn="go_tail";
+            shift;;
+        --)
+            shift;
+            break;;
+        *)
+            echo "Unexpected option: $1";
+            usage ;;
+    esac
+done
+
+"$fn"
