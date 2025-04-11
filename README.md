@@ -13,7 +13,7 @@ And available in the $PATH, e.g. create a link to `/usr/bin`
 
 ## Usage
 ```
-$ git tavel master --help
+$ git travel master --help
 git travel <branch name> [[ -b | --backward [ -n <N> ] ] | [ -f | --forward [ -n <N> ] ] | [ --head ] | [ --tail ]]
 
 Travel over commit history of the branch.
