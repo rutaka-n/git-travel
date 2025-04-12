@@ -4,8 +4,9 @@
 ###
 
 unset N
+unset usage
 
-usage() {
+usage_linux() {
     printf "Usage: git travel <branch name> [[ -b | --backward [ -n <N> ] ] | [ -f | --forward [ -n <N> ] ] | [ --head ] | [ --tail ]]\n
 Travel over commit history of the branch.\n
 OPTIONS
@@ -15,6 +16,19 @@ OPTIONS
 \t-n <N>\t\tSet the number of commits for go forward or backward. N equals 1 if not specified.\n
 \t--head\t\tCheckout to HEAD of the branch - latest commit.\n
 \t--tail\t\tCheckout to first commit of the branch.\n"
+    exit 2
+}
+
+usage_non_linux() {
+    printf "Usage: git travel <branch name> [[ -b [ -n <N> ] ] | [ -f [ -n <N> ] ] | [ -H ] | [ -T ]]\n
+Travel over commit history of the branch.\n
+OPTIONS
+\t-h\tPrints this message.\n
+\t-b\tCheckout to N-th commit backward from current commit in history of the branch.\n
+\t-f\tCheckout to N-th commit forward from current commit in history of the branch.\n
+\t-n <N>\tSet the number of commits for go forward or backward. N equals 1 if not specified.\n
+\t-H\tCheckout to HEAD of the branch - latest commit.\n
+\t-T\tCheckout to first commit of the branch.\n"
     exit 2
 }
 
@@ -79,59 +93,110 @@ go_tail() {
     exit 0
 }
 
-if [ "$#" -lt 1 ]; then
-    echo "Illegal number of parameters"
-    usage
+validate_branch () {
+    BRANCH=$1
+    shift
+    if ! git show-ref --verify "refs/heads/$BRANCH" >> /dev/null 2>&1; then
+        echo "Unknown branch $BRANCH"
+        "$usage"
+    fi
+}
+
+travel_linux() {
+    usage=usage_linux
+    if [ "$#" -lt 1 ]; then
+        echo "Illegal number of parameters"
+        "$usage"
+    fi
+
+    validate_branch "$1"
+
+    fn="travel_status"
+
+    PARSED_ARGUMENTS=$(getopt -n git-travel -o hn:bf --long help,backward,forward,head,tail -- "$@")
+    VALID_ARGUMENTS=$?
+    if [ "$VALID_ARGUMENTS" != "0" ]; then
+        "$usage"
+    fi
+    eval set -- "$PARSED_ARGUMENTS"
+    while :
+    do
+        case "$1" in
+            -h | --help)
+                "$usage";;
+            -n)
+                if [ "$2" -ge 0 ] >> /dev/null 2>&1; then
+                    N=$2;
+                else
+                    echo "-n takes an positive integer as a value"
+                    "$usage"
+                fi
+                shift 2;;
+            -b | --backward)
+                fn="go_backward";
+                shift ;;
+            -f | --forward)
+                fn="go_forward";
+                shift ;;
+            --head)
+                fn="go_head";
+                shift;;
+            --tail)
+                fn="go_tail";
+                shift;;
+            --)
+                shift;
+                break;;
+            *)
+                echo "Unexpected option: $1";
+                "$usage" ;;
+        esac
+    done
+
+    "$fn"
+}
+
+travel_non_linux() {
+    usage=usage_non_linux
+    if [ "$#" -lt 1 ]; then
+        echo "Illegal number of parameters"
+        "$usage"
+    fi
+
+    validate_branch "$1"
+
+    fn="travel_status"
+
+    while getopts "hn:bfHT" flag; do
+        case "$flag" in
+            h)
+                "$usage";;
+            n)
+                if [ "$OPTARG" -ge 0 ] >> /dev/null 2>&1; then
+                    N=$OPTARG;
+                else
+                    echo "-n takes an positive integer as a value"
+                    "$usage"
+                fi;;
+            b)
+                fn="go_backward";;
+            f)
+                fn="go_forward";;
+            H)
+                fn="go_head";;
+            T)
+                fn="go_tail";;
+            *)
+                echo "Unexpected option: $flag";
+                "$usage" ;;
+        esac
+    done
+
+    "$fn"
+}
+
+if uname -a | grep Linux >> /dev/null 2>&1; then
+    travel_linux "$@"
+else
+    travel_non_linux "$@"
 fi
-
-BRANCH=$1
-shift
-if ! git show-ref --verify "refs/heads/$BRANCH" >> /dev/null 2>&1; then
-    echo "Unknown branch $BRANCH"
-    usage
-fi
-
-PARSED_ARGUMENTS=$(getopt -n git-travel -o hn:bf --long help,backward,forward,head,tail -- "$@")
-VALID_ARGUMENTS=$?
-if [ "$VALID_ARGUMENTS" != "0" ]; then
-    usage
-fi
-
-fn="travel_status"
-
-eval set -- "$PARSED_ARGUMENTS"
-while :
-do
-    case "$1" in
-        -h | --help)
-            usage;;
-        -n)
-            if [ "$2" -ge 0 ] >> /dev/null 2>&1; then
-                N=$2;
-            else
-                echo "-n takes an positive integer as a value"
-                usage
-            fi
-            shift 2;;
-        -b | --backward)
-            fn="go_backward";
-            shift ;;
-        -f | --forward)
-            fn="go_forward";
-            shift ;;
-        --head)
-            fn="go_head";
-            shift;;
-        --tail)
-            fn="go_tail";
-            shift;;
-        --)
-            shift;
-            break;;
-        *)
-            echo "Unexpected option: $1";
-            usage ;;
-    esac
-done
-
-"$fn"
