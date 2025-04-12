@@ -7,15 +7,15 @@ unset N
 unset usage
 
 usage_linux() {
-    printf "Usage: git travel <branch name> [[ -b | --backward [ -n <N> ] ] | [ -f | --forward [ -n <N> ] ] | [ --head ] | [ --tail ]]\n
+    printf "Usage: git travel <branch name> [[ -b | --backward [ -n <N> ] ] | [ -f | --forward [ -n <N> ] ] | [ -H | --head ] | [ -T | --tail ]]\n
 Travel over commit history of the branch.\n
 OPTIONS
 \t-h, --help\tPrints this message.\n
 \t-b, --backward\tCheckout to N-th commit backward from current commit in history of the branch.\n
 \t-f, --forward\tCheckout to N-th commit forward from current commit in history of the branch.\n
 \t-n <N>\t\tSet the number of commits for go forward or backward. N equals 1 if not specified.\n
-\t--head\t\tCheckout to HEAD of the branch - latest commit.\n
-\t--tail\t\tCheckout to first commit of the branch.\n"
+\t-H, --head\tCheckout to HEAD of the branch - latest commit.\n
+\t-T, --tail\tCheckout to first commit of the branch.\n"
     exit 2
 }
 
@@ -113,7 +113,7 @@ travel_linux() {
 
     fn="travel_status"
 
-    PARSED_ARGUMENTS=$(getopt -n git-travel -o hn:bf --long help,backward,forward,head,tail -- "$@")
+    PARSED_ARGUMENTS=$(getopt -n git-travel -o hn:bfHT --long help,backward,forward,head,tail -- "$@")
     VALID_ARGUMENTS=$?
     if [ "$VALID_ARGUMENTS" != "0" ]; then
         "$usage"
@@ -138,10 +138,10 @@ travel_linux() {
             -f | --forward)
                 fn="go_forward";
                 shift ;;
-            --head)
+            -H | --head)
                 fn="go_head";
                 shift;;
-            --tail)
+            -T | --tail)
                 fn="go_tail";
                 shift;;
             --)
