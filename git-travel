@@ -42,10 +42,8 @@ function travel_status() {
 
 function go_backward() {
     check_worktree
-    CUR=$(git log --oneline -n 1)
     N=${N:-"1"}
-    SHA=$(git log --oneline -n $((N + 1)) | tail -n 1 | awk '{print $1}')
-    git checkout $SHA > /dev/null 2>&1
+    git checkout HEAD~$N > /dev/null 2>&1
     echo "Going $N commit(s) backward"
     travel_status
     exit 0
@@ -55,7 +53,7 @@ function go_forward() {
     check_worktree
     N=${N:-"1"}
     CUR_SHA=$(git log --oneline -n 1 | awk '{print $1}')
-    SHA=$(git log $BRANCH --oneline --reverse HEAD..$CUR_SHA | head -n $N | tail -n 1 | awk '{print $1}')
+    SHA=$(git rev-list --reverse HEAD..$BRANCH | sed -n ${N}p)
     git checkout $SHA > /dev/null 2>&1
     echo "Going $N commit(s) forward"
     travel_status
