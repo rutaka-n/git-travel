@@ -110,6 +110,7 @@ travel_linux() {
     fi
 
     validate_branch "$1"
+    shift 1
 
     fn="travel_status"
 
@@ -164,6 +165,7 @@ travel_non_linux() {
     fi
 
     validate_branch "$1"
+    shift 1
 
     fn="travel_status"
 
