@@ -5,7 +5,7 @@
 
 unset N
 
-function usage() {
+usage() {
     printf "Usage: git travel <branch name> [[ -b | --backward [ -n <N> ] ] | [ -f | --forward [ -n <N> ] ] | [ --head ] | [ --tail ]]\n
 Travel over commit history of the branch.\n
 OPTIONS
@@ -18,9 +18,8 @@ OPTIONS
     exit 2
 }
 
-function check_worktree() {
-    git status | grep 'working tree clean' >> /dev/null
-    if [ "$?" != "0" ]; then
+check_worktree() {
+    if ! git status | grep 'working tree clean' >> /dev/null; then
         echo "Working tree contains uncommited changes
 git-travel requires clean working tree.
 Please commit, stash, or discard local changes."
@@ -28,51 +27,53 @@ Please commit, stash, or discard local changes."
     fi
 }
 
-function travel_status() {
+travel_status() {
     CUR=$(git log --oneline -n 1)
-    CUR_SHA=$(echo $CUR | awk '{print $1}')
+    CUR_SHA=$(echo "$CUR" | awk '{print $1}')
 
-    FROM_HEAD=$(git log $BRANCH --oneline HEAD..$CUR_SHA | wc -l)
+    FROM_HEAD=$(git log "$BRANCH" --oneline HEAD.."$CUR_SHA" | wc -l)
     FROM_TAIL=$(git log --oneline | wc -l)
     echo "Current commit is"
-    echo $CUR
+    echo "$CUR"
     echo "$FROM_HEAD commits down from HEAD"
     echo "$((FROM_TAIL - 1)) commits up from TAIL"
 }
 
-function go_backward() {
+go_backward() {
     check_worktree
     N=${N:-"1"}
-    git checkout HEAD~$N > /dev/null 2>&1
+    git checkout HEAD~"$N" > /dev/null 2>&1
     echo "Going $N commit(s) backward"
     travel_status
     exit 0
 }
 
-function go_forward() {
+go_forward() {
     check_worktree
     N=${N:-"1"}
-    CUR_SHA=$(git log --oneline -n 1 | awk '{print $1}')
-    SHA=$(git rev-list --reverse HEAD..$BRANCH | sed -n ${N}p)
-    git checkout $SHA > /dev/null 2>&1
+    if [ "$N" -ge 1 ]; then
+        CUR_SHA=$(git log --oneline -n 1 | awk '{print $1}')
+        SHA=$(git rev-list --reverse HEAD.."$BRANCH" | sed -n "$N"p)
+        git checkout "$SHA" > /dev/null 2>&1
+    fi
     echo "Going $N commit(s) forward"
     travel_status
     exit 0
 }
 
-function go_head() {
+go_head() {
     check_worktree
-    SHA=$(git log $BRANCH -n 1 --oneline | awk '{print $1}')
-    git checkout $SHA > /dev/null 2>&1
+    SHA=$(git log "$BRANCH" -n 1 --oneline | awk '{print $1}')
+    git checkout "$SHA" > /dev/null 2>&1
     echo "Going to HEAD of $BRANCH"
     travel_status
     exit 0
 }
 
-function go_tail() {
+go_tail() {
     check_worktree
-    SHA=$(git log $BRANCH --oneline --reverse | head -n 1 | awk '{print $1}')
-    git checkout $SHA > /dev/null 2>&1
+    SHA=$(git log "$BRANCH" --oneline --reverse | head -n 1 | awk '{print $1}')
+    git checkout "$SHA" > /dev/null 2>&1
     echo "Going to TAIL of $BRANCH"
     travel_status
     exit 0
@@ -85,8 +86,7 @@ fi
 
 BRANCH=$1
 shift
-git show-ref --verify "refs/heads/$BRANCH" >> /dev/null 2>&1
-if [ "$?" != "0" ]; then
+if ! git show-ref --verify "refs/heads/$BRANCH" >> /dev/null 2>&1; then
     echo "Unknown branch $BRANCH"
     usage
 fi
@@ -104,19 +104,18 @@ while :
 do
     case "$1" in
         -h | --help)
-            usage;
-            shift;;
+            usage;;
         -n)
-            if [[ $2 =~ ^[0-9]+$ ]]; then
+            if [ "$2" -ge 0 ] >> /dev/null 2>&1; then
                 N=$2;
             else
-                echo "-n takes an integer as a value"
+                echo "-n takes an positive integer as a value"
                 usage
             fi
             shift 2;;
         -b | --backward)
             fn="go_backward";
-            shift $S ;;
+            shift ;;
         -f | --forward)
             fn="go_forward";
             shift ;;
