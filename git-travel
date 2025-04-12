@@ -77,8 +77,7 @@ go_forward() {
 
 go_head() {
     check_worktree
-    SHA=$(git log "$BRANCH" -n 1 --oneline | awk '{print $1}')
-    git checkout "$SHA" > /dev/null 2>&1
+    git checkout "$BRANCH" > /dev/null 2>&1
     echo "Going to HEAD of $BRANCH"
     travel_status
     exit 0
