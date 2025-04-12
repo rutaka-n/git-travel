@@ -85,7 +85,7 @@ fi
 
 BRANCH=$1
 shift
-git branch | grep $BRANCH >> /dev/null
+git show-ref --verify "refs/heads/$BRANCH" >> /dev/null 2>&1
 if [ "$?" != "0" ]; then
     echo "Unknown branch $BRANCH"
     usage
